@@ -49,3 +49,6 @@ app.*.map.json
 
 # Local project notes/docs (not part of the app, kept out of version control)
 /docs/
+
+# Supabase CLI local cache
+/supabase/.temp/
