@@ -71,6 +71,30 @@ class _AuthGateState extends State<AuthGate> {
 class ConnectionCheckPage extends StatelessWidget {
   const ConnectionCheckPage({super.key});
 
+  Future<void> _confirmLogOut(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await Supabase.instance.client.auth.signOut();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -80,7 +104,7 @@ class ConnectionCheckPage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',
-            onPressed: () => Supabase.instance.client.auth.signOut(),
+            onPressed: () => _confirmLogOut(context),
           ),
         ],
       ),
