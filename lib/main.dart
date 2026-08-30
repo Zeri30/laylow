@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
+import 'screens/account/account_screen.dart';
 import 'screens/auth/sign_up_screen.dart';
 
 Future<void> main() async {
@@ -42,11 +45,27 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   late final Stream<AuthState> _authStateStream;
+  late final StreamSubscription<AuthState> _signOutSubscription;
 
   @override
   void initState() {
     super.initState();
     _authStateStream = Supabase.instance.client.auth.onAuthStateChange;
+    // Any screen showing personal data (account, journal, etc.) is pushed on
+    // top of this widget's route, so losing the session here alone wouldn't
+    // hide it. Pop back to this route whenever the session ends, whether
+    // from an explicit log out or a revoked/expired token.
+    _signOutSubscription = _authStateStream.listen((state) {
+      if (state.session == null && mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _signOutSubscription.cancel();
+    super.dispose();
   }
 
   @override
@@ -101,6 +120,13 @@ class ConnectionCheckPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Laylow'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: 'Account',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AccountScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',
