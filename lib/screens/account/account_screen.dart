@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AccountScreen extends StatefulWidget {
@@ -14,9 +15,11 @@ class _AccountScreenState extends State<AccountScreen> {
 
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isUploadingAvatar = false;
   String? _errorMessage;
   String? _infoMessage;
   DateTime? _memberSince;
+  String? _avatarUrl;
 
   String get _email => Supabase.instance.client.auth.currentUser?.email ?? '';
 
@@ -39,13 +42,14 @@ class _AccountScreenState extends State<AccountScreen> {
     try {
       final row = await Supabase.instance.client
           .from('profiles')
-          .select('display_name, created_at')
+          .select('display_name, avatar_url, created_at')
           .eq('id', userId)
           .single();
 
       if (!mounted) return;
       setState(() {
         _displayNameController.text = row['display_name'] as String? ?? '';
+        _avatarUrl = row['avatar_url'] as String?;
         final createdAt = row['created_at'] as String?;
         _memberSince = createdAt == null ? null : DateTime.parse(createdAt);
       });
@@ -92,6 +96,69 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
+  Future<void> _pickAndUploadAvatar() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+
+    setState(() {
+      _isUploadingAvatar = true;
+      _errorMessage = null;
+      _infoMessage = null;
+    });
+
+    try {
+      final bytes = await picked.readAsBytes();
+      final ext = picked.path.contains('.')
+          ? picked.path.split('.').last.toLowerCase()
+          : 'jpg';
+      final storagePath = '$userId/avatar.$ext';
+
+      await Supabase.instance.client.storage
+          .from('avatars')
+          .uploadBinary(
+            storagePath,
+            bytes,
+            fileOptions: FileOptions(
+              upsert: true,
+              contentType: picked.mimeType,
+            ),
+          );
+
+      final publicUrl = Supabase.instance.client.storage
+          .from('avatars')
+          .getPublicUrl(storagePath);
+      // Bust caches (Image.network, CDN) since the storage path is reused.
+      final freshUrl =
+          '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+
+      await Supabase.instance.client
+          .from('profiles')
+          .update({'avatar_url': freshUrl})
+          .eq('id', userId);
+
+      if (!mounted) return;
+      setState(() => _avatarUrl = freshUrl);
+    } on StorageException catch (e) {
+      setState(() => _errorMessage = e.message);
+    } on PostgrestException catch (e) {
+      setState(() => _errorMessage = e.message);
+    } catch (_) {
+      setState(
+        () => _errorMessage = 'Could not update your photo. Please retry.',
+      );
+    } finally {
+      if (mounted) setState(() => _isUploadingAvatar = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -117,6 +184,59 @@ class _AccountScreenState extends State<AccountScreen> {
                             'Your account',
                             style: Theme.of(context).textTheme.headlineSmall,
                             textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          Center(
+                            child: Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 48,
+                                  backgroundImage: _avatarUrl != null
+                                      ? NetworkImage(_avatarUrl!)
+                                      : null,
+                                  child: _avatarUrl == null
+                                      ? const Icon(Icons.person, size: 48)
+                                      : null,
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Material(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                    shape: const CircleBorder(),
+                                    child: InkWell(
+                                      customBorder: const CircleBorder(),
+                                      onTap: _isUploadingAvatar
+                                          ? null
+                                          : _pickAndUploadAvatar,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(6),
+                                        child: _isUploadingAvatar
+                                            ? SizedBox(
+                                                height: 16,
+                                                width: 16,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.onPrimary,
+                                                ),
+                                              )
+                                            : Icon(
+                                                Icons.camera_alt,
+                                                size: 16,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary,
+                                              ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 32),
                           TextFormField(
