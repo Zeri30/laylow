@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../services/playlist_service.dart';
 import '../../utils/journal_events.dart';
 import '../../widgets/confirm_delete_dialog.dart';
 import '../../widgets/journal_entry_form.dart';
 import '../../widgets/log_out_button.dart';
+import '../playlist/playlist_screen.dart';
 
 /// Landing tab of the main shell: pick today's mood + intensity, write a
 /// journal entry, and save it. If today's entry already exists, its values
@@ -117,6 +119,7 @@ class _TodayScreenState extends State<TodayScreen> {
         _initialJournalText = journalText ?? '';
       });
       journalEntriesChanged.notifyChanged();
+      _generatePlaylist(inserted['id'] as String, mood, moodIntensity);
     } else {
       await Supabase.instance.client
           .from('journal_entries')
@@ -134,7 +137,23 @@ class _TodayScreenState extends State<TodayScreen> {
         _initialJournalText = journalText ?? '';
       });
       journalEntriesChanged.notifyChanged();
+      _generatePlaylist(entryId, mood, moodIntensity);
     }
+  }
+
+  /// Fire-and-forget: the journal entry is already saved by this point, so a
+  /// Deezer/network hiccup here shouldn't block that save or surface as a
+  /// save error. Errors are swallowed until the playlist screen (a later
+  /// checklist item) has somewhere to show them.
+  void _generatePlaylist(String entryId, String mood, int moodIntensity) {
+    generatePlaylistForJournalEntry(
+      journalEntryId: entryId,
+      mood: mood,
+      moodIntensity: moodIntensity,
+    ).catchError((Object error) {
+      debugPrint('Playlist generation failed for entry $entryId: $error');
+      return '';
+    });
   }
 
   Future<void> _deleteEntry() async {
@@ -186,7 +205,16 @@ class _TodayScreenState extends State<TodayScreen> {
       appBar: AppBar(
         title: const Text('Today'),
         actions: [
-          if (_entryId != null)
+          if (_entryId != null) ...[
+            IconButton(
+              icon: const Icon(Icons.queue_music),
+              tooltip: 'View playlist',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => PlaylistScreen(journalEntryId: _entryId!),
+                ),
+              ),
+            ),
             IconButton(
               icon: _isDeleting
                   ? const SizedBox(
@@ -198,6 +226,7 @@ class _TodayScreenState extends State<TodayScreen> {
               tooltip: 'Delete entry',
               onPressed: _isDeleting ? null : _deleteEntry,
             ),
+          ],
           const LogOutButton(),
         ],
       ),

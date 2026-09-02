@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for Supabase and Deezer API calls (release builds don't get
+         this for free the way debug/profile builds do). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="laylow"
         android:name="${applicationName}"
