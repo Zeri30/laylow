@@ -9,6 +9,7 @@ import '../models/deezer_track.dart';
 import 'mood_music_mapping.dart';
 
 const _searchEndpoint = 'https://api.deezer.com/search';
+const _trackEndpoint = 'https://api.deezer.com/track';
 
 Future<http.Response> _get(Uri uri, http.Client? client) {
   return client == null ? http.get(uri) : client.get(uri);
@@ -42,6 +43,27 @@ Future<List<DeezerTrack>> searchDeezerTracks(
       if ((entry['preview'] as String?)?.isNotEmpty ?? false)
         DeezerTrack.fromJson(entry),
   ];
+}
+
+/// Re-fetches a fresh preview URL for a track already saved to a playlist.
+///
+/// Deezer signs preview URLs with a short expiry (~1 hour), so the
+/// `preview_url` stored on `playlist_tracks` at generation time goes stale
+/// well before most listening sessions — the CDN returns 403 for an
+/// expired one. Looking the track up again by [deezerTrackId] returns a
+/// newly-signed URL that's good for another hour. Returns null if the
+/// lookup fails or the track no longer has a preview.
+Future<String?> fetchFreshPreviewUrl(
+  int deezerTrackId, {
+  http.Client? client,
+}) async {
+  final uri = Uri.parse('$_trackEndpoint/$deezerTrackId');
+  final response = await _get(uri, client);
+  if (response.statusCode != 200) return null;
+
+  final body = jsonDecode(response.body) as Map<String, dynamic>;
+  final preview = body['preview'] as String?;
+  return (preview?.isNotEmpty ?? false) ? preview : null;
 }
 
 /// Fetches candidate tracks for a mood + intensity: runs every rule-based

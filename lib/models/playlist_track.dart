@@ -8,6 +8,7 @@ class PlaylistTrack {
     required this.previewUrl,
     required this.artworkUrl,
     required this.youtubeVideoId,
+    required this.deezerTrackId,
   });
 
   factory PlaylistTrack.fromRow(Map<String, dynamic> row) {
@@ -19,6 +20,7 @@ class PlaylistTrack {
       previewUrl: row['preview_url'] as String?,
       artworkUrl: row['artwork_url'] as String?,
       youtubeVideoId: row['youtube_video_id'] as String?,
+      deezerTrackId: row['deezer_track_id'] as int?,
     );
   }
 
@@ -27,7 +29,10 @@ class PlaylistTrack {
   final String title;
   final String artist;
 
-  /// 30-second Deezer preview. Nullable defensively (the column allows
+  /// A 30-second Deezer preview URL, signed with a short expiry (~1 hour).
+  /// Stale as soon as it's more than an hour old, so it's only ever used as
+  /// a last-resort fallback — playback re-fetches a fresh one via
+  /// [deezerTrackId] instead. Nullable defensively (the column allows
   /// null), though `playlist_service.dart` only ever writes tracks that
   /// already had one.
   final String? previewUrl;
@@ -36,6 +41,10 @@ class PlaylistTrack {
   /// Resolved lazily (see `youtube_service.dart`) the first time the user
   /// asks for full-song playback on this track, then cached here.
   final String? youtubeVideoId;
+
+  /// Deezer's numeric track id, used to re-fetch a fresh (unexpired)
+  /// preview URL at playback time — see `deezer_service.dart`.
+  final int? deezerTrackId;
 
   PlaylistTrack withYoutubeVideoId(String videoId) {
     return PlaylistTrack(
@@ -46,6 +55,7 @@ class PlaylistTrack {
       previewUrl: previewUrl,
       artworkUrl: artworkUrl,
       youtubeVideoId: videoId,
+      deezerTrackId: deezerTrackId,
     );
   }
 }

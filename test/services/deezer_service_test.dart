@@ -69,6 +69,40 @@ void main() {
     });
   });
 
+  group('fetchFreshPreviewUrl', () {
+    test('returns the preview url from a successful lookup', () async {
+      final client = MockClient((request) async {
+        expect(request.url.path, '/track/123');
+        return http.Response(
+          jsonEncode(_track(123, preview: 'https://preview.example/fresh.mp3')),
+          200,
+        );
+      });
+
+      final url = await fetchFreshPreviewUrl(123, client: client);
+
+      expect(url, 'https://preview.example/fresh.mp3');
+    });
+
+    test('returns null on a non-200 response', () async {
+      final client = MockClient((request) async => http.Response('', 403));
+
+      final url = await fetchFreshPreviewUrl(123, client: client);
+
+      expect(url, isNull);
+    });
+
+    test('returns null when the track has no preview', () async {
+      final client = MockClient((request) async {
+        return http.Response(jsonEncode(_track(123, preview: null)), 200);
+      });
+
+      final url = await fetchFreshPreviewUrl(123, client: client);
+
+      expect(url, isNull);
+    });
+  });
+
   group('fetchTracksForMood', () {
     test('merges and de-duplicates tracks across search terms', () async {
       final client = MockClient((request) async {

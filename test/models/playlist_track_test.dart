@@ -12,11 +12,13 @@ void main() {
         'preview_url': 'https://preview.example/1.mp3',
         'artwork_url': 'https://cover.example/1.jpg',
         'youtube_video_id': null,
+        'deezer_track_id': 42,
       });
 
       expect(track.id, 't1');
       expect(track.position, 2);
       expect(track.youtubeVideoId, isNull);
+      expect(track.deezerTrackId, 42);
     });
 
     test('withYoutubeVideoId returns a copy with only that field changed', () {
@@ -28,6 +30,7 @@ void main() {
         previewUrl: 'https://preview.example/1.mp3',
         artworkUrl: null,
         youtubeVideoId: null,
+        deezerTrackId: 42,
       );
 
       final updated = track.withYoutubeVideoId('abc123');
