@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
-import 'screens/account/account_screen.dart';
 import 'screens/auth/sign_up_screen.dart';
+import 'screens/home/main_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,9 +33,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// Shows the sign-up flow when logged out, or the (temporary) home
-/// placeholder once a session exists. Log in / log out will be added
-/// as those screens are built.
+/// Shows the sign-up flow when logged out, or the main navigation shell
+/// once a session exists.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
@@ -79,79 +78,10 @@ class _AuthGateState extends State<AuthGate> {
       builder: (context, snapshot) {
         final session = snapshot.data?.session;
         if (session != null) {
-          return const ConnectionCheckPage();
+          return const MainShell();
         }
         return const SignUpScreen();
       },
-    );
-  }
-}
-
-class ConnectionCheckPage extends StatelessWidget {
-  const ConnectionCheckPage({super.key});
-
-  Future<void> _confirmLogOut(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Log out?'),
-        content: const Text('Are you sure you want to log out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Log out'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      await Supabase.instance.client.auth.signOut();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Laylow'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.account_circle_outlined),
-            tooltip: 'Account',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AccountScreen()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => _confirmLogOut(context),
-          ),
-        ],
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 64),
-            const SizedBox(height: 16),
-            const Text(
-              'Supabase initialized successfully',
-              style: TextStyle(fontSize: 18),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              SupabaseConfig.url,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

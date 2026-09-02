@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../widgets/log_out_button.dart';
+
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
 
@@ -162,7 +164,10 @@ class _AccountScreenState extends State<AccountScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Account')),
+      appBar: AppBar(
+        title: const Text('Account'),
+        actions: const [LogOutButton()],
+      ),
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
