@@ -222,7 +222,7 @@ class _MoodTile extends StatelessWidget {
 
     return AnimatedScale(
       duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutBack,
+      curve: Curves.easeOutCubic,
       scale: selected ? 1.06 : 1.0,
       child: Material(
         color: selected
@@ -238,8 +238,7 @@ class _MoodTile extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
           onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
+          child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Row(
               mainAxisSize: MainAxisSize.min,

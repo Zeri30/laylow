@@ -159,7 +159,10 @@ abstract final class AppTheme {
     return ThemeData(
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surface,
-      splashFactory: InkSparkle.splashFactory,
+      // A plain expanding ripple rather than Material 3's default sparkle
+      // effect — the sparkle animation is showy in a way that cuts against
+      // a calming, distraction-free journaling app (Requirements §5).
+      splashFactory: InkRipple.splashFactory,
       textTheme: textTheme,
 
       appBarTheme: AppBarThemeData(
