@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../theme/app_theme.dart';
 import '../../widgets/log_out_button.dart';
 
 class AccountScreen extends StatefulWidget {
@@ -90,9 +91,7 @@ class _AccountScreenState extends State<AccountScreen> {
     } on PostgrestException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (_) {
-      setState(
-        () => _errorMessage = 'Something went wrong. Please try again.',
-      );
+      setState(() => _errorMessage = 'Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -138,8 +137,7 @@ class _AccountScreenState extends State<AccountScreen> {
           .from('avatars')
           .getPublicUrl(storagePath);
       // Bust caches (Image.network, CDN) since the storage path is reused.
-      final freshUrl =
-          '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+      final freshUrl = '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
 
       await Supabase.instance.client
           .from('profiles')
@@ -194,22 +192,34 @@ class _AccountScreenState extends State<AccountScreen> {
                           Center(
                             child: Stack(
                               children: [
-                                CircleAvatar(
-                                  radius: 48,
-                                  backgroundImage: _avatarUrl != null
-                                      ? NetworkImage(_avatarUrl!)
-                                      : null,
-                                  child: _avatarUrl == null
-                                      ? const Icon(Icons.person, size: 48)
-                                      : null,
+                                Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: AppTheme.heroGradient(
+                                      Theme.of(context).colorScheme,
+                                    ),
+                                  ),
+                                  child: CircleAvatar(
+                                    radius: 48,
+                                    backgroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .surface,
+                                    backgroundImage: _avatarUrl != null
+                                        ? NetworkImage(_avatarUrl!)
+                                        : null,
+                                    child: _avatarUrl == null
+                                        ? const Icon(Icons.person, size: 48)
+                                        : null,
+                                  ),
                                 ),
                                 Positioned(
                                   right: 0,
                                   bottom: 0,
                                   child: Material(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
                                     shape: const CircleBorder(),
                                     child: InkWell(
                                       customBorder: const CircleBorder(),
@@ -222,19 +232,20 @@ class _AccountScreenState extends State<AccountScreen> {
                                             ? SizedBox(
                                                 height: 16,
                                                 width: 16,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).colorScheme.onPrimary,
-                                                ),
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onPrimary,
+                                                    ),
                                               )
                                             : Icon(
                                                 Icons.camera_alt,
                                                 size: 16,
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.onPrimary,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onPrimary,
                                               ),
                                       ),
                                     ),

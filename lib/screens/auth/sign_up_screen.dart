@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../widgets/gradient_blob_backdrop.dart';
 import 'log_in_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -60,9 +61,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     } on AuthException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (_) {
-      setState(
-        () => _errorMessage = 'Something went wrong. Please try again.',
-      );
+      setState(() => _errorMessage = 'Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -71,144 +70,147 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Create your account',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Start journaling and get music that matches your mood.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      autofillHints: const [AutofillHints.email],
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        final v = value?.trim() ?? '';
-                        if (v.isEmpty) return 'Enter your email';
-                        if (!v.contains('@') || !v.contains('.')) {
-                          return 'Enter a valid email';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      autofillHints: const [AutofillHints.newPassword],
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        border: const OutlineInputBorder(),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                          ),
-                          onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword,
-                          ),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.length < 6) {
-                          return 'At least 6 characters';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _confirmPasswordController,
-                      obscureText: _obscureConfirmPassword,
-                      decoration: InputDecoration(
-                        labelText: 'Confirm password',
-                        border: const OutlineInputBorder(),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscureConfirmPassword
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                          ),
-                          onPressed: () => setState(
-                            () => _obscureConfirmPassword =
-                                !_obscureConfirmPassword,
-                          ),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value != _passwordController.text) {
-                          return 'Passwords do not match';
-                        }
-                        return null;
-                      },
-                    ),
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: 16),
+      body: GradientBlobBackdrop(
+        height: 340,
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       Text(
-                        _errorMessage!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
+                        'Create your account',
+                        style: Theme.of(context).textTheme.displaySmall,
                         textAlign: TextAlign.center,
                       ),
-                    ],
-                    if (_infoMessage != null) ...[
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
                       Text(
-                        _infoMessage!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+                        'Start journaling and get music that matches your mood.',
+                        style: Theme.of(context).textTheme.bodyMedium,
                         textAlign: TextAlign.center,
                       ),
-                    ],
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      onPressed: _isSubmitting ? null : _submit,
-                      child: _isSubmitting
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Text('Sign up'),
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: _isSubmitting
-                          ? null
-                          : () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const LogInScreen(),
-                              ),
+                      const SizedBox(height: 32),
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        autofillHints: const [AutofillHints.email],
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          final v = value?.trim() ?? '';
+                          if (v.isEmpty) return 'Enter your email';
+                          if (!v.contains('@') || !v.contains('.')) {
+                            return 'Enter a valid email';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        autofillHints: const [AutofillHints.newPassword],
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
                             ),
-                      child: const Text('Already have an account? Log in'),
-                    ),
-                  ],
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.length < 6) {
+                            return 'At least 6 characters';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: _obscureConfirmPassword,
+                        decoration: InputDecoration(
+                          labelText: 'Confirm password',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscureConfirmPassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
+                            onPressed: () => setState(
+                              () => _obscureConfirmPassword =
+                                  !_obscureConfirmPassword,
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value != _passwordController.text) {
+                            return 'Passwords do not match';
+                          }
+                          return null;
+                        },
+                      ),
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          _errorMessage!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                      if (_infoMessage != null) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          _infoMessage!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                      FilledButton(
+                        onPressed: _isSubmitting ? null : _submit,
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Sign up'),
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: _isSubmitting
+                            ? null
+                            : () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const LogInScreen(),
+                                ),
+                              ),
+                        child: const Text('Already have an account? Log in'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

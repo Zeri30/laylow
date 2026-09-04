@@ -2,19 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../services/playlist_service.dart';
+import '../../services/streak_service.dart';
+import '../../utils/date_format.dart';
 import '../../utils/journal_events.dart';
+import '../../utils/today_entry_status.dart';
 import '../../widgets/confirm_delete_dialog.dart';
+import '../../widgets/gradient_blob_backdrop.dart';
 import '../../widgets/journal_entry_form.dart';
 import '../../widgets/log_out_button.dart';
+import '../../widgets/streak_hero_card.dart';
+import '../../widgets/today_flow_timeline.dart';
 import '../playlist/playlist_screen.dart';
 
-/// Landing tab of the main shell: pick today's mood + intensity, write a
-/// journal entry, and save it. If today's entry already exists, its values
-/// are loaded into the form and saving updates it in place instead of
-/// inserting a second row (the table only allows one entry per user per
-/// day).
+/// Landing tab of the main shell: a streak/stats hero, a summary of today's
+/// entry once it exists, and the mood/intensity/journal form itself. If
+/// today's entry already exists, its values are loaded into the form and
+/// saving updates it in place instead of inserting a second row (the table
+/// only allows one entry per user per day).
 class TodayScreen extends StatefulWidget {
-  const TodayScreen({super.key});
+  const TodayScreen({super.key, this.onViewHistory});
+
+  /// Switches the main shell to the History tab — wired by [MainShell] so
+  /// the hero card's "View history" action can jump straight there.
+  final VoidCallback? onViewHistory;
 
   @override
   State<TodayScreen> createState() => _TodayScreenState();
@@ -28,17 +38,21 @@ class _TodayScreenState extends State<TodayScreen> {
   String _initialJournalText = '';
   String? _checkErrorMessage;
   bool _isDeleting = false;
+  StreakStats _streakStats = StreakStats.zero;
 
   @override
   void initState() {
     super.initState();
     _checkTodayEntry();
+    _loadStreakStats();
     journalEntriesChanged.addListener(_checkTodayEntry);
+    journalEntriesChanged.addListener(_loadStreakStats);
   }
 
   @override
   void dispose() {
     journalEntriesChanged.removeListener(_checkTodayEntry);
+    journalEntriesChanged.removeListener(_loadStreakStats);
     super.dispose();
   }
 
@@ -47,6 +61,16 @@ class _TodayScreenState extends State<TodayScreen> {
     return '${now.year.toString().padLeft(4, '0')}-'
         '${now.month.toString().padLeft(2, '0')}-'
         '${now.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _loadStreakStats() async {
+    try {
+      final stats = await fetchStreakStats();
+      if (mounted) setState(() => _streakStats = stats);
+    } catch (_) {
+      // Non-critical — the hero card just keeps showing the last known
+      // stats (or zero on first load) rather than surfacing an error.
+    }
   }
 
   Future<void> _checkTodayEntry() async {
@@ -75,6 +99,7 @@ class _TodayScreenState extends State<TodayScreen> {
           _initialJournalText = '';
         }
       });
+      todayEntryLogged.value = _entryId != null;
     } on PostgrestException catch (e) {
       if (mounted) setState(() => _checkErrorMessage = e.message);
     } catch (_) {
@@ -118,6 +143,7 @@ class _TodayScreenState extends State<TodayScreen> {
         _initialMoodIntensity = moodIntensity;
         _initialJournalText = journalText ?? '';
       });
+      todayEntryLogged.value = true;
       journalEntriesChanged.notifyChanged();
       _generatePlaylist(inserted['id'] as String, mood, moodIntensity);
     } else {
@@ -176,15 +202,15 @@ class _TodayScreenState extends State<TodayScreen> {
         _initialMoodIntensity = 3;
         _initialJournalText = '';
       });
+      todayEntryLogged.value = false;
       journalEntriesChanged.notifyChanged();
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Deleted today's entry.")));
     } on PostgrestException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (_) {
       if (mounted) {
@@ -199,9 +225,32 @@ class _TodayScreenState extends State<TodayScreen> {
     }
   }
 
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour < 5) return 'Still up?';
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    if (hour < 21) return 'Good evening';
+    return 'Winding down?';
+  }
+
+  void _openPlaylist() {
+    final entryId = _entryId;
+    if (entryId == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PlaylistScreen(journalEntryId: entryId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text('Today'),
         actions: [
@@ -209,11 +258,7 @@ class _TodayScreenState extends State<TodayScreen> {
             IconButton(
               icon: const Icon(Icons.queue_music),
               tooltip: 'View playlist',
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => PlaylistScreen(journalEntryId: _entryId!),
-                ),
-              ),
+              onPressed: _openPlaylist,
             ),
             IconButton(
               icon: _isDeleting
@@ -230,69 +275,102 @@ class _TodayScreenState extends State<TodayScreen> {
           const LogOutButton(),
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (_isCheckingTodayEntry)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 16),
-                  child: LinearProgressIndicator(),
-                )
-              else if (_checkErrorMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(
-                    _checkErrorMessage!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
-                  ),
-                )
-              else ...[
-                if (_entryId != null) ...[
-                  Card(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
+      body: GradientBlobBackdrop(
+        height: 200,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(20, kToolbarHeight + 20, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.check_circle,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onPrimaryContainer,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              "You've already logged today — feel free to "
-                              'update it below.',
-                              style: TextStyle(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onPrimaryContainer,
-                              ),
+                          Text(_greeting, style: textTheme.headlineMedium),
+                          const SizedBox(height: 2),
+                          Text(
+                            formatFriendlyDate(DateTime.now()),
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: scheme.onSurfaceVariant,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-                JournalEntryForm(
-                  initialMood: _initialMood,
-                  initialMoodIntensity: _initialMoodIntensity,
-                  initialJournalText: _initialJournalText,
-                  onSave: _saveEntry,
-                  saveLabel: _entryId == null ? 'Save' : 'Update',
-                  successMessage: _entryId == null
-                      ? "Saved today's entry."
-                      : "Updated today's entry.",
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(10, 7, 13, 7),
+                      decoration: BoxDecoration(
+                        color: scheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.local_fire_department_rounded,
+                            size: 16,
+                            color: scheme.secondary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${_streakStats.currentStreak}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: scheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 20),
+                StreakHeroCard(
+                  stats: _streakStats,
+                  onViewHistory: widget.onViewHistory ?? () {},
+                ),
+                const SizedBox(height: 24),
+                if (_isCheckingTodayEntry)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 16),
+                    child: LinearProgressIndicator(),
+                  )
+                else if (_checkErrorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      _checkErrorMessage!,
+                      style: TextStyle(color: scheme.error),
+                    ),
+                  )
+                else ...[
+                  if (_entryId != null) ...[
+                    TodayFlowTimeline(
+                      mood: _initialMood!,
+                      moodIntensity: _initialMoodIntensity,
+                      journalText: _initialJournalText,
+                      onOpenPlaylist: _openPlaylist,
+                    ),
+                    const SizedBox(height: 28),
+                  ],
+                  JournalEntryForm(
+                    initialMood: _initialMood,
+                    initialMoodIntensity: _initialMoodIntensity,
+                    initialJournalText: _initialJournalText,
+                    onSave: _saveEntry,
+                    saveLabel: _entryId == null ? 'Save' : 'Update',
+                    successMessage: _entryId == null
+                        ? "Saved today's entry."
+                        : "Updated today's entry.",
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

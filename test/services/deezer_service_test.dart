@@ -114,7 +114,10 @@ void main() {
           jsonEncode({
             'data': [
               _track(1, preview: 'https://preview.example/1.mp3'),
-              _track(termSpecificId, preview: 'https://preview.example/$termSpecificId.mp3'),
+              _track(
+                termSpecificId,
+                preview: 'https://preview.example/$termSpecificId.mp3',
+              ),
             ],
           }),
           200,

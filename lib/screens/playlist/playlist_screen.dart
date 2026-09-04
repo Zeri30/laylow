@@ -6,6 +6,10 @@ import '../../models/mood_option.dart';
 import '../../models/playlist_track.dart';
 import '../../services/deezer_service.dart';
 import '../../services/youtube_service.dart';
+import '../../theme/app_theme.dart';
+import '../../utils/mood_color.dart';
+import '../../widgets/gradient_icon_button.dart';
+import '../../widgets/intensity_meter.dart';
 import 'youtube_player_screen.dart';
 
 /// Full-screen wrapper around [PlaylistView] — used when the playlist is its
@@ -109,9 +113,7 @@ class _PlaylistViewState extends State<PlaylistView> {
 
       if (!mounted) return;
       setState(() {
-        _tracks = [
-          for (final row in rows) PlaylistTrack.fromRow(row),
-        ];
+        _tracks = [for (final row in rows) PlaylistTrack.fromRow(row)];
         _playlistMood = playlist['mood'] as String;
         _playlistMoodIntensity = playlist['mood_intensity'] as int;
       });
@@ -172,7 +174,9 @@ class _PlaylistViewState extends State<PlaylistView> {
       if (!mounted) return;
       setState(() => _currentIndex = null);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Couldn't play this track. Please retry.")),
+        const SnackBar(
+          content: Text("Couldn't play this track. Please retry."),
+        ),
       );
     }
   }
@@ -262,20 +266,31 @@ class _PlaylistViewState extends State<PlaylistView> {
     if (mood == null || intensity == null) return const SizedBox.shrink();
 
     final option = moodOptionFor(mood);
+    final accent = moodColorFor(mood);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Row(
-        children: [
-          Text(option.emoji, style: const TextStyle(fontSize: 20)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Picked for feeling ${option.label.toLowerCase()} '
-              '(intensity $intensity/5)',
-              style: Theme.of(context).textTheme.bodyMedium,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: accent.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          children: [
+            Icon(option.icon, color: accent, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Picked for feeling ${option.label.toLowerCase()}',
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            IntensityMeter(value: intensity, color: accent),
+          ],
+        ),
       ),
     );
   }
@@ -284,7 +299,8 @@ class _PlaylistViewState extends State<PlaylistView> {
   Widget build(BuildContext context) {
     final currentIndex = _currentIndex;
     final currentTrack = currentIndex == null ? null : _tracks[currentIndex];
-    final hasContent = !_isLoading && _errorMessage == null && _tracks.isNotEmpty;
+    final hasContent =
+        !_isLoading && _errorMessage == null && _tracks.isNotEmpty;
 
     return Column(
       children: [
@@ -305,69 +321,20 @@ class _PlaylistViewState extends State<PlaylistView> {
                         "This entry's playlist isn't ready yet — pull to "
                         'refresh, or check back in a moment.',
                   )
-                : ListView.builder(
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
                     itemCount: _tracks.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
                       final track = _tracks[index];
                       final isCurrent = index == currentIndex;
-                      return ListTile(
-                        leading: track.artworkUrl != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: Image.network(
-                                  track.artworkUrl!,
-                                  width: 48,
-                                  height: 48,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : const Icon(Icons.music_note),
-                        title: Text(
-                          track.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          track.artist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        selected: isCurrent,
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (track.previewUrl != null ||
-                                track.deezerTrackId != null)
-                              _resolvingPreviewIndex == index
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : Icon(
-                                      isCurrent && _isPlaying
-                                          ? Icons.pause_circle_filled
-                                          : Icons.play_circle_fill,
-                                    ),
-                            IconButton(
-                              icon: _resolvingYoutubeIndex == index
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(Icons.smart_display_outlined),
-                              tooltip: 'Play full song',
-                              onPressed: _resolvingYoutubeIndex != null
-                                  ? null
-                                  : () => _openFullSong(index),
-                            ),
-                          ],
-                        ),
+                      return _TrackRow(
+                        track: track,
+                        isCurrent: isCurrent,
+                        isPlaying: isCurrent && _isPlaying,
+                        isResolvingPreview: _resolvingPreviewIndex == index,
+                        isResolvingYoutube: _resolvingYoutubeIndex == index,
+                        youtubeBusy: _resolvingYoutubeIndex != null,
                         onTap:
                             (track.previewUrl == null &&
                                     track.deezerTrackId == null) ||
@@ -376,6 +343,9 @@ class _PlaylistViewState extends State<PlaylistView> {
                             : () => isCurrent
                                   ? _togglePlayPause()
                                   : _playTrackAt(index),
+                        onOpenFullSong: _resolvingYoutubeIndex != null
+                            ? null
+                            : () => _openFullSong(index),
                       );
                     },
                   ),
@@ -426,6 +396,119 @@ class _CenteredMessage extends StatelessWidget {
   }
 }
 
+/// Track row with rounded artwork and a gradient play button — a "card"
+/// rather than a flat [ListTile] row, matching the rest of the app's
+/// styling. [isCurrent] highlights the row with a soft accent tint.
+class _TrackRow extends StatelessWidget {
+  const _TrackRow({
+    required this.track,
+    required this.isCurrent,
+    required this.isPlaying,
+    required this.isResolvingPreview,
+    required this.isResolvingYoutube,
+    required this.youtubeBusy,
+    required this.onTap,
+    required this.onOpenFullSong,
+  });
+
+  final PlaylistTrack track;
+  final bool isCurrent;
+  final bool isPlaying;
+  final bool isResolvingPreview;
+  final bool isResolvingYoutube;
+  final bool youtubeBusy;
+  final VoidCallback? onTap;
+  final VoidCallback? onOpenFullSong;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final canPlay = track.previewUrl != null || track.deezerTrackId != null;
+
+    return Material(
+      color: isCurrent
+          ? scheme.primaryContainer.withValues(alpha: 0.5)
+          : scheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: track.artworkUrl != null
+                    ? Image.network(
+                        track.artworkUrl!,
+                        width: 52,
+                        height: 52,
+                        fit: BoxFit.cover,
+                      )
+                    : Container(
+                        width: 52,
+                        height: 52,
+                        color: scheme.surfaceContainerHighest,
+                        child: Icon(Icons.music_note, color: scheme.primary),
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      track.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      track.artist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: scheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              if (canPlay)
+                isResolvingPreview
+                    ? const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : GradientIconButton(
+                        icon: isPlaying ? Icons.pause : Icons.play_arrow,
+                        onPressed: onTap,
+                      ),
+              IconButton(
+                icon: isResolvingYoutube
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.smart_display_outlined),
+                tooltip: 'Play full song',
+                onPressed: youtubeBusy ? null : onOpenFullSong,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Floating gradient bar for the currently-playing track, rather than a
+/// flat bottom app bar, so it reads as a distinct "now playing" surface.
 class _MiniPlayer extends StatelessWidget {
   const _MiniPlayer({
     required this.title,
@@ -449,49 +532,77 @@ class _MiniPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall,
+    final scheme = Theme.of(context).colorScheme;
+
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+        decoration: BoxDecoration(
+          gradient: AppTheme.heroGradient(scheme),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: scheme.primary.withValues(alpha: 0.35),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onPrimary,
                     ),
-                    Text(
-                      artist,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  Text(
+                    artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: scheme.onPrimary.withValues(alpha: 0.8),
+                      fontSize: 12,
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.skip_previous,
+                color: scheme.onPrimary.withValues(
+                  alpha: hasPrevious ? 1 : 0.4,
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.skip_previous),
-                onPressed: hasPrevious ? onPrevious : null,
+              onPressed: hasPrevious ? onPrevious : null,
+            ),
+            IconButton(
+              icon: Icon(
+                isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
+                color: scheme.onPrimary,
               ),
-              IconButton(
-                icon: Icon(isPlaying ? Icons.pause_circle : Icons.play_circle),
-                iconSize: 36,
-                onPressed: onPlayPause,
+              iconSize: 38,
+              onPressed: onPlayPause,
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.skip_next,
+                color: scheme.onPrimary.withValues(alpha: hasNext ? 1 : 0.4),
               ),
-              IconButton(
-                icon: const Icon(Icons.skip_next),
-                onPressed: hasNext ? onNext : null,
-              ),
-            ],
-          ),
+              onPressed: hasNext ? onNext : null,
+            ),
+          ],
         ),
       ),
     );

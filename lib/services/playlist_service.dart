@@ -52,17 +52,15 @@ Future<String> generatePlaylistForJournalEntry({
   final playlistId = playlist['id'] as String;
 
   await client.from('playlist_tracks').delete().eq('playlist_id', playlistId);
-  await client
-      .from('playlist_tracks')
-      .insert([
-        for (var i = 0; i < selected.length; i++)
-          playlistTrackRow(
-            playlistId: playlistId,
-            userId: userId,
-            position: i,
-            track: selected[i],
-          ),
-      ]);
+  await client.from('playlist_tracks').insert([
+    for (var i = 0; i < selected.length; i++)
+      playlistTrackRow(
+        playlistId: playlistId,
+        userId: userId,
+        position: i,
+        track: selected[i],
+      ),
+  ]);
 
   return playlistId;
 }

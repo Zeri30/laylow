@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/mood_option.dart';
+import '../utils/mood_color.dart';
 
 /// Mood picker (chips + intensity slider) + journal text field + save
 /// button, shared by the Today screen (create/update today's entry) and the
@@ -93,9 +94,8 @@ class _JournalEntryFormState extends State<JournalEntryForm> {
       if (widget.onSaved != null) {
         widget.onSaved!();
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(widget.successMessage)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(widget.successMessage)));
       }
     } on PostgrestException catch (e) {
       if (mounted) setState(() => _errorMessage = e.message);
@@ -119,25 +119,32 @@ class _JournalEntryFormState extends State<JournalEntryForm> {
       children: [
         Text(
           'How are you feeling?',
-          style: Theme.of(context).textTheme.titleLarge,
+          style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 16),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 10,
+          runSpacing: 10,
           children: [
             for (final mood in moodOptions)
-              ChoiceChip(
-                label: Text('${mood.emoji} ${mood.label}'),
+              _MoodTile(
+                mood: mood,
                 selected: _selectedMood == mood.id,
-                onSelected: (selected) {
-                  setState(() => _selectedMood = selected ? mood.id : null);
-                },
+                onTap: () => setState(
+                  () =>
+                      _selectedMood = _selectedMood == mood.id ? null : mood.id,
+                ),
               ),
           ],
         ),
         const SizedBox(height: 32),
-        Text('Intensity', style: Theme.of(context).textTheme.titleMedium),
+        Row(
+          children: [
+            Text('Intensity', style: Theme.of(context).textTheme.titleMedium),
+            const Spacer(),
+            _IntensityBadge(value: _moodIntensity),
+          ],
+        ),
         Row(
           children: [
             const Text('Mild'),
@@ -189,6 +196,100 @@ class _JournalEntryFormState extends State<JournalEntryForm> {
               : Text(widget.saveLabel),
         ),
       ],
+    );
+  }
+}
+
+/// A single tappable mood option, styled as a soft rounded tile rather than
+/// a flat [ChoiceChip] — selection is shown with that mood's own accent
+/// color ([moodColorFor]) instead of one generic selected color, so each
+/// mood reads as visually distinct as well as textually.
+class _MoodTile extends StatelessWidget {
+  const _MoodTile({
+    required this.mood,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final MoodOption mood;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final accent = moodColorFor(mood.id);
+
+    return AnimatedScale(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutBack,
+      scale: selected ? 1.06 : 1.0,
+      child: Material(
+        color: selected
+            ? accent.withValues(alpha: 0.16)
+            : scheme.surfaceContainerHigh,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(
+            color: selected ? accent : scheme.outlineVariant,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  mood.icon,
+                  size: 18,
+                  color: selected ? accent : scheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  mood.label,
+                  style: TextStyle(
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    color: selected ? accent : scheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Small pill showing the current intensity value (1-5), mirroring the
+/// slider so the number is legible without reading the thumb's tooltip.
+class _IntensityBadge extends StatelessWidget {
+  const _IntensityBadge({required this.value});
+
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        '$value/5',
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          color: scheme.onSecondaryContainer,
+        ),
+      ),
     );
   }
 }

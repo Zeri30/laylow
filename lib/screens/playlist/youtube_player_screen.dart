@@ -46,8 +46,14 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.title, style: Theme.of(context).textTheme.titleMedium),
-                  Text(widget.artist, style: Theme.of(context).textTheme.bodyMedium),
+                  Text(
+                    widget.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Text(
+                    widget.artist,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ],
               ),
             ),

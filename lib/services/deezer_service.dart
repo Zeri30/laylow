@@ -26,9 +26,8 @@ Future<List<DeezerTrack>> searchDeezerTracks(
   int limit = 10,
   http.Client? client,
 }) async {
-  final uri = Uri.parse(_searchEndpoint).replace(
-    queryParameters: {'q': query, 'limit': '$limit'},
-  );
+  final uri = Uri.parse(_searchEndpoint)
+      .replace(queryParameters: {'q': query, 'limit': '$limit'});
   final response = await _get(uri, client);
   if (response.statusCode != 200) {
     throw Exception(

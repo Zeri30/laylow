@@ -14,9 +14,19 @@ import '../playlist/playlist_screen.dart';
 /// picked for that mood — rather than treating them as separate features
 /// (Requirements §4).
 class JournalEntryDetailScreen extends StatefulWidget {
-  const JournalEntryDetailScreen({super.key, required this.entry});
+  const JournalEntryDetailScreen({
+    super.key,
+    required this.entry,
+    this.initialTabIndex = 0,
+  });
 
   final JournalEntrySummary entry;
+
+  /// 0 = Journal, 1 = Playlist. Lets a caller (e.g. History's quick-play
+  /// action) land directly on the music tab instead of always opening on
+  /// the journal text — Requirements §5's "easily access ... music
+  /// recommendations".
+  final int initialTabIndex;
 
   @override
   State<JournalEntryDetailScreen> createState() =>
@@ -25,7 +35,11 @@ class JournalEntryDetailScreen extends StatefulWidget {
 
 class _JournalEntryDetailScreenState extends State<JournalEntryDetailScreen>
     with SingleTickerProviderStateMixin {
-  late final _tabController = TabController(length: 2, vsync: this);
+  late final _tabController = TabController(
+    length: 2,
+    vsync: this,
+    initialIndex: widget.initialTabIndex,
+  );
   bool _isDeleting = false;
 
   @override
@@ -66,9 +80,8 @@ class _JournalEntryDetailScreenState extends State<JournalEntryDetailScreen>
       Navigator.of(context).pop(true);
     } on PostgrestException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (_) {
       if (mounted) {
