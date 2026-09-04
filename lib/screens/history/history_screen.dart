@@ -6,14 +6,20 @@ import '../../models/mood_option.dart';
 import '../../utils/date_format.dart';
 import '../../utils/journal_events.dart';
 import '../../utils/mood_color.dart';
+import '../../utils/mood_insights.dart';
 import '../../widgets/gradient_icon_button.dart';
 import '../../widgets/intensity_meter.dart';
 import '../../widgets/log_out_button.dart';
+import '../../widgets/mood_calendar.dart';
+import '../../widgets/mood_insights_card.dart';
 import 'journal_entry_detail_screen.dart';
 
+enum _HistoryView { list, calendar }
+
 /// Browse-past-entries tab of the main shell: a reverse-chronological list
-/// of journal entries. Deleting an entry and richer mood-history views
-/// (calendar, trends) are later checklist items.
+/// of journal entries, a "your patterns" overview, and a month calendar
+/// view — both give a sense of mood over time that a flat list alone
+/// doesn't (Requirements §6).
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
@@ -25,6 +31,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   List<JournalEntrySummary> _entries = [];
+  _HistoryView _view = _HistoryView.list;
 
   @override
   void initState() {
@@ -80,7 +87,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('History'),
-        actions: const [LogOutButton()],
+        actions: [
+          IconButton(
+            icon: Icon(
+              _view == _HistoryView.list
+                  ? Icons.calendar_month_outlined
+                  : Icons.view_agenda_outlined,
+            ),
+            tooltip: _view == _HistoryView.list
+                ? 'Show calendar view'
+                : 'Show list view',
+            onPressed: () => setState(
+              () => _view = _view == _HistoryView.list
+                  ? _HistoryView.calendar
+                  : _HistoryView.list,
+            ),
+          ),
+          const LogOutButton(),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadEntries,
@@ -124,31 +148,40 @@ class _HistoryScreenState extends State<HistoryScreen> {
       );
     }
 
-    return ListView.separated(
+    Future<void> openDetail(JournalEntrySummary entry, int initialTabIndex) async {
+      final updated = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => JournalEntryDetailScreen(
+            entry: entry,
+            initialTabIndex: initialTabIndex,
+          ),
+        ),
+      );
+      if (updated == true) await _loadEntries();
+    }
+
+    final insights = computeMoodInsights(_entries);
+
+    return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      itemCount: _entries.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final entry = _entries[index];
-
-        Future<void> openDetail(int initialTabIndex) async {
-          final updated = await Navigator.of(context).push<bool>(
-            MaterialPageRoute(
-              builder: (_) => JournalEntryDetailScreen(
-                entry: entry,
-                initialTabIndex: initialTabIndex,
-              ),
+      children: [
+        MoodInsightsCard(insights: insights),
+        if (insights.totalEntries > 0) const SizedBox(height: 14),
+        if (_view == _HistoryView.calendar)
+          MoodCalendar(
+            entries: _entries,
+            onDayTap: (entry) => openDetail(entry, 0),
+          )
+        else
+          for (final entry in _entries) ...[
+            _HistoryEntryCard(
+              entry: entry,
+              onTap: () => openDetail(entry, 0),
+              onOpenPlaylist: () => openDetail(entry, 1),
             ),
-          );
-          if (updated == true) await _loadEntries();
-        }
-
-        return _HistoryEntryCard(
-          entry: entry,
-          onTap: () => openDetail(0),
-          onOpenPlaylist: () => openDetail(1),
-        );
-      },
+            if (entry != _entries.last) const SizedBox(height: 10),
+          ],
+      ],
     );
   }
 }
