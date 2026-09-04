@@ -25,8 +25,18 @@ class LogOutButton extends StatelessWidget {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed != true) return;
+
+    try {
       await Supabase.instance.client.auth.signOut();
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Couldn't log out. Please check your connection."),
+          ),
+        );
+      }
     }
   }
 

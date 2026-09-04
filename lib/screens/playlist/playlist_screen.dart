@@ -238,13 +238,21 @@ class _PlaylistViewState extends State<PlaylistView> {
         return;
       }
 
-      await Supabase.instance.client
-          .from('playlist_tracks')
-          .update({'youtube_video_id': videoId})
-          .eq('id', track.id);
+      // Caching the resolved id is an optimization, not a requirement for
+      // playback below — a failed write here shouldn't block opening the
+      // player, just mean the next tap re-resolves it.
+      try {
+        await Supabase.instance.client
+            .from('playlist_tracks')
+            .update({'youtube_video_id': videoId})
+            .eq('id', track.id);
 
-      if (!mounted) return;
-      setState(() => _tracks[index] = track.withYoutubeVideoId(videoId!));
+        if (mounted) {
+          setState(() => _tracks[index] = track.withYoutubeVideoId(videoId!));
+        }
+      } catch (_) {
+        // Swallowed — see comment above.
+      }
     }
 
     if (_currentIndex == index && _isPlaying) await _player.pause();
